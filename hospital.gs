@@ -20,79 +20,83 @@ function main() {
 function makefile(file) {
   //title
   let filename = file.getName();
-  console.log(filename);
   var title = filename.match(/.*?(?=\..*?)/);
   //ファイルの中身を取得
   var fc = file
     .getBlob()
     .getDataAsString("utf-8");
-  //日付
-  var dates = fc.match(/(?<=<h2 id="a20\d+[^<>]+">).*?(?=<\/h2>)/g);
-  //時間
-  var times = fc.match(/(<p>[^<>]*<strong>[^<>]*([0-9０−９]{1,2}:[0-9０−９]{1,2})?[^<>]*([0-9０−９]{1,2}:[0-9０−９]{1,2})?[^<>]*<\/strong>[^<>]*<\/p>[^<>]*){1,2}/g);
-  //内容
-  var contents = fc.match(/(?<=<\/strong>[^<>]*<\/p>[^<>]*)((<ul>[^<>]*(<li>[^<>]*(<a class=[^<>]*>[^<>]*<\/a>[^<>]*)?(<pre class="wiki">[^<>]+<\/pre>)?[^<>]*<\/li>[^<>]*)+<\/ul>)?(<pre class="wiki">[^<>]+<\/pre>)?(<p>[^<>]*<\/p>)?[^<>]*)+(?=[^<>]*<p>[^<>]*[a-z]\.[a-z]+\n<\/p>)/g);
-  //担当者名
-  var names = fc.match(/(?<=<p>\n)[a-z].[a-z]+(?=\n<\/p>)/g);
-  //出力する箱
-  var boxes = [];
+  //正規表現作成
+  var reg = makereg();
+  //ファイルの部分を取得
+  var infs = fc.match(RegExp(reg, 'g'));
+  //ファイルの状況
+  if (!infs) {
+    text = 'ファイルが存在しません';
+    sheet4 = ss.getSheets()[4];
+    var st = [[filename, text]];
+    sheet4.getRange(sheet4.getLastRow() + 1, 1, 1, 2).setValues(st);
+  } else {
 
+    //出力する箱
+    var boxes = [];
+    infs.forEach(function (inf) {
 
-  //出力するテキスト
-  let text = '完了';
-  if (dates) {
-
-    //出力数
-    let rows = dates.length;
-    if (rows != dates.length) {
-      text = '日付の数が異なります.';
-    } else if (rows != times.length) {
-      text = '時間の数が異なります.';
-    } else if (rows > contents.length) {
-      text = '内容の数が少ないです';
-    } else if (rows != names.length) {
-      text = '担当者名の数が異なります';
-    }
-
-    else {
-
-      //時間書き換え
-      let newtimes = [];
-      times.forEach(function (time) {
-        newtimes.push(time.replace(/(\s*<[^<>]*>\s*)+/g, ''));
-      })
-      //内容書き換え
-      let newcontents = [];
-      contents.forEach(function (content) {
-        newcontents.push(content.replace(/(\s*<[^<>]*>\s*)+/g, ''));
-      })
-      //二次元配列に挿入
-      for (let i = 0; i < rows; i++) {
-        let box = [title];
-        box.push(dates[i]);
-        box.push(newtimes[i]);
-        box.push(newcontents[i]);
-        box.push(names[i]);
-        boxes.push(box);
+      //日付
+      var dates = inf.match(/(?<=<h2 id="a20\d+[^<>]+">).*?(?=<\/h2>)/g);
+      //時間
+      var times = inf.match(/(<p>[^<>]*<strong>[^<>]*([0-9０−９]{1,2}:[0-9０−９]{1,2})?[^<>]*([0-9０−９]{1,2}:[0-9０−９]{1,2})?[^<>]*<\/strong>[^<>]*<\/p>[^<>]*){1,2}/g);
+      //内容
+      var contents = inf.match(/(?<=<\/strong>[^<>]*<\/p>[^<>]*)((<ul>[^<>]*(<li>[^<>]*(<a class=[^<>]*>[^<>]*<\/a>[^<>]*)?(<pre class="wiki">[^<>]+<\/pre>)?[^<>]*<\/li>[^<>]*)+<\/ul>)?(<pre class="wiki">[^<>]+<\/pre>)?(<p>[^<>]*<\/p>)?[^<>]*)+(?=[^<>]*<p>[^<>]*[a-z]\.[a-z]+\n<\/p>)/g);
+      //担当者名
+      var names = inf.match(/(?<=<p>\n)[a-z].[a-z]+(?=\n<\/p>)/g);
+      let box = [title];
+      if (dates) {
+        box.push(dates[0]);
+      } else {
+        box.push(dates);
       }
-      //スプレッドシートに出力
-      print(boxes, rows);
-      file.moveTo(mfolder);
-    }
-  }else{
-    text="ファイルが存在しません"
+      if (times) {
+        time = times[0].replace(/(\s*<[^<>]*>\s*)+/g, '');
+        box.push(time);
+      } else {
+        box.push(times);
+      }
+      if (contents) {
+        content = contents[0].replace(/(\s*<[^<>]*>\s*)+/g, '');
+        box.push(content);
+      } else {
+        box.push(contents);
+      }
+      if (names) {
+        box.push(names[0]);
+      } else {
+        box.push(names);
+      }
+      boxes.push(box);
+    })
+    console.log(filename);
+    print(boxes);
+    file.moveTo(mfolder);
   }
-  //処理状況の確認
-  var stbox = [[filename, text]];
-  sheet4 = ss.getSheets()[4];
-  let lastrow = sheet4.getLastRow();
-  sheet4.getRange(lastrow + 1, 1, 1, 2).setValues(stbox);
-
 }
-function print(boxes, rows) {
+function print(boxes) {
   //出力範囲
   //保守履歴を指定
   const sheet = ss.getSheets()[3];
-  let range = sheet.getRange(sheet.getLastRow() + 1, 1, rows, boxes[0].length);
+  let range = sheet.getRange(sheet.getLastRow() + 1, 1, boxes.length, boxes[0].length);
   range.setValues(boxes);
+}
+function test(){
+  const id="1dAxjpukn8tVvR6KX611P7Q8pdvDowdQ3";
+  const file=DriveApp.getFileById(id);
+  print2(file.getBlob().getDataAsString("utf-8"));
+}
+function print2(fc){
+  var tables=fc.match(/(?<=<tr>[^<>]*(<td>[^<>]*<strong>[^<>]*<\/strong>[^<>]*<\/td>[^<>]*)+<\/tr>)[^<>]*<tr>[^<>]*(<td>[^<>]*<\/td>[^<>]*)+[^<>]*<\/tr>[^<>]*/g);
+  //var text1=fc.match(/<tr>[^<>]*<td>[^<>]*<strong>[^<>]*DB[^<>]*<\/strong>[^<>]*<\/td>[^<>]*<td>[^<>]*<strong>[^<>]*USER[^<>]*<\/strong>[^<>]*<\/td>[^<>]*<td>[^<>]*<strong>[^<>]*ENCODE[^<>]*<\/strong>[^<>]*<\/td>[^<>]*<td>[^<>]*<strong>[^<>]*VERSION[^<>]*<\/strong>[^<>]*<\/td>[^<>]*<td>[^<>]*<strong>[^<>]*WEB[^<>]*<\/strong>[^<>]*<\/td>[^<>]*<td>[^<>]*<strong>[^<>]*RECITAL[^<>]*<\/strong>[^<>]*<\/td>[^<>]*<\/tr>[^<>]*<tr>[^<>]*<td>[^<>]*topaz[^<>]*<\/td>[^<>]*<td>[^<>]*<\/td>[^<>]*<td>[^<>]*<\/td>[^<>]*<td>[^<>]*<\/td>[^<>]*<td>[^<>]*<\/td>[^<>]*<td>[^<>]*<\/td>[^<>]*<\/tr>[^<>]*<\/table>/g);
+  var boxes=[];
+  tables.forEach(function(table){
+    boxes.push(table.match(/(?<=<td>)[^<>]*(?=<\/td>)/g));
+  })
+  console.log(boxes);
 }

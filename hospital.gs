@@ -26,7 +26,9 @@ function makefile(file) {
     .getBlob()
     .getDataAsString("utf-8");
   //正規表現作成
-  var reg = makereg();
+  var datereg = '<h2 id="a20\\d+[^<>]+">[^<>]*<\\/h2>';
+  var timereg = '(<p>[^<>]*<strong>[^<>]*([0-9０−９]{1,2}:[0-9０−９]{1,2})?[^<>]*([0-9０−９]{1,2}:[0-9０−９]{1,2})?[^<>]*<\\/strong>[^<>]*<\\/p>[^<>]*){1,2}';
+  var namereg = '<p>\\n[a-z].[a-z]+\\n<\\/p>';
   //ファイルの部分を取得
   var infs = fc.match(RegExp(reg, 'g'));
   //ファイルの状況

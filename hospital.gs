@@ -26,57 +26,69 @@ function makefile(file) {
     .getBlob()
     .getDataAsString("utf-8");
   //正規表現作成
-  var reg = makereg();
-  //ファイルの部分を取得
-  var infs = fc.match(RegExp(reg, 'g'));
-  //ファイルの状況
-  if (!infs) {
-    text = 'ファイルが存在しません';
-    sheet4 = ss.getSheets()[4];
-    var st = [[filename, text]];
-    sheet4.getRange(sheet4.getLastRow() + 1, 1, 1, 2).setValues(st);
-  } else {
-
-    //出力する箱
-    var boxes = [];
-    infs.forEach(function (inf) {
-
-      //日付
-      var dates = inf.match(/(?<=<h2 id="a20\d+[^<>]+">).*?(?=<\/h2>)/g);
-      //時間
-      var times = inf.match(/(<p>[^<>]*<strong>[^<>]*([0-9０−９]{1,2}:[0-9０−９]{1,2})?[^<>]*([0-9０−９]{1,2}:[0-9０−９]{1,2})?[^<>]*<\/strong>[^<>]*<\/p>[^<>]*){1,2}/g);
-      //内容
-      var contents = inf.match(/(?<=<\/strong>[^<>]*<\/p>[^<>]*)((<ul>[^<>]*(<li>[^<>]*(<a class=[^<>]*>[^<>]*<\/a>[^<>]*)?(<pre class="wiki">[^<>]+<\/pre>)?[^<>]*<\/li>[^<>]*)+<\/ul>)?(<pre class="wiki">[^<>]+<\/pre>)?(<p>[^<>]*<\/p>)?[^<>]*)+(?=[^<>]*<p>[^<>]*[a-z]\.[a-z]+\n<\/p>)/g);
-      //担当者名
-      var names = inf.match(/(?<=<p>\n)[a-z].[a-z]+(?=\n<\/p>)/g);
-      let box = [title];
-      if (dates) {
-        box.push(dates[0]);
-      } else {
-        box.push(dates);
-      }
-      if (times) {
-        time = times[0].replace(/(\s*<[^<>]*>\s*)+/g, '');
-        box.push(time);
-      } else {
-        box.push(times);
-      }
-      if (contents) {
-        content = contents[0].replace(/(\s*<[^<>]*>\s*)+/g, '');
-        box.push(content);
-      } else {
-        box.push(contents);
-      }
-      if (names) {
-        box.push(names[0]);
-      } else {
-        box.push(names);
-      }
-      boxes.push(box);
-    })
-    console.log(filename);
-    print(boxes);
-    file.moveTo(mfolder);
+  var datereg = '<h2 id="a20\\d+[^<>]+">[^<>]*<\\/h2>';
+  var timereg = '(<p>[^<>]*<strong>[^<>]*([0-9０−９]{1,2}:[0-9０−９]{1,2})?[^<>]*([0-9０−９]{1,2}:[0-9０−９]{1,2})?[^<>]*<\\/strong>[^<>]*<\\/p>[^<>]*){1,2}';
+  var namereg = '<p>\\n[a-z].[a-z]+\\n<\\/p>';
+  //各情報を分ける.
+  //サーバー情報
+  f0 = fa.match(/(?<=<table class="wiki">\s*)<tr[^<>]*>\s*<td[^<>]*>\s*TTL名称.*?<\/td>\s*<\/tr>\s*<\/table>/s);
+  //正DB
+  f1 = fa.match(/(?<=<h2 id="\s*正DB"\s*>\s*正DB\s*<\/h2>).*?(?=<h2 id="\s*副DB"\s*>\s*副DB\s*<\/h2>)/s);
+  //副DB
+  f2 = fa.match(/(?<=<h2 id="\s*副DB"\s*>\s*副DB\s*<\/h2>).*?(?=<h2 id="\s*保守履歴"\s*>\s*保守履歴\s*<\/h2>)/s);
+  //保守履歴
+  f3 = fa.match(/(?<=<h2 id="\s*保守履歴"\s*>\s*保守履歴\s*<\/h2>).*?(?=<\/html>)/s);
+//ページの有無の確認
+  if (f1) {
+    //サーバー情報
+    let db0 = table2(hosname, f0[0]);
+    const sheet0 = ss.getSheets()[0];
+    sheet0.getRange(sheet0.getLastRow() + 1, 1, db0.length, db0[0].length).setValues(db0);
+    //正DB
+    let db1 = table(hosname, f1[0]);
+    const sheet1 = ss.getSheets()[1];
+    sheet1.getRange(sheet1.getLastRow() + 1, 1, db1.length, db1[0].length).setValues(db1);
+    //副DB
+    let db2 = table(hosname, f2[0]);
+    const sheet2 = ss.getSheets()[2];
+    sheet2.getRange(sheet2.getLastRow() + 1, 1, db2.length, db2[0].length).setValues(db2);
+    //保守履歴
+    fc = f3[0];
+    boxes = fc.match(RegExp(datereg + '.*?' + namereg, 'gs'));
+    if (boxes) {
+      var newboxes = [];
+      boxes.forEach(function (box) {
+        let date = box.match(datereg)[0];
+        let time = box.match(timereg);
+        let name = box.match(namereg);
+        let newbox = [hosname, date.replace(/<[^<>]*>|\s/g, '')];
+        if (time) {
+          newbox.push(time[0].replace(/<[^<>]*>|\s/g, ''));
+        } else {
+          newbox.push(time);
+        }
+        let content = box.replace(RegExp(datereg + '|' + timereg + '|' + namereg, 'g'), '');
+        newbox.push(content.replace(/<[^<>]*>|\s/g, ''));
+        if (name) {
+          newbox.push(name[0].replace(/<[^<>]*>|\s/g, ''));
+        } else {
+          newbox.push(name);
+        }
+        newboxes.push(newbox);
+      })
+      print(newboxes);
+      //保守履歴を記録できたファイルの移動
+      file.moveto(mfolder);
+      console.log(filename);
+    }
+    else 
+    {
+      var stbox = [[filename, 'ページが存在しません']];
+      //処理状況
+      sheet4 = ss.getSheets()[4];
+      let lastrow = sheet4.getLastRow();
+      sheet4.getRange(lastrow + 1, 1, 1, 2).setValues(stbox);
+    }
   }
 }
 function print(boxes) {
